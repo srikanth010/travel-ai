@@ -1,6 +1,15 @@
 {
   "extends": "@react-native/typescript-config",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"]
-}
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react", // Use "react-jsx" if you're using React 17+
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": ["src/**/*", "index.ts", "App.tsx"],
+  "exclude": ["node_modules"]
 }

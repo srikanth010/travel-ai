@@ -8,7 +8,7 @@ import FlightScreen from '../screens/FlightScreen';
 import HotelsScreen from '../screens/HotelsScreen';
 import AirbnbScreen from '../screens/AirbnbScreen';
 import CarsScreen from '../screens/CarScreen';
-import VideoScreen from '../screens/VideoScreen';
+import VideoFeedScreen from '../screens/VideoScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -64,22 +64,15 @@ const AppNavigator = () => {
               style={{ flex: 1 }}
             />
           ),
-          headerStyle: {
-            backgroundColor: '#00BFFF', // Gold background color for the header
-          },
-          headerTitleStyle: {
-            color: '#333', // Text color for the header title
-            fontWeight: 'bold',
-          },
+          headerShown: false, // Remove header for all screens
         })}
       >
-        
         <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Videos" component={VideoScreen} />
+        <Tab.Screen name="Videos" component={VideoFeedScreen} />
         <Tab.Screen name="Flight" component={FlightScreen} />
         <Tab.Screen name="Hotels" component={HotelsScreen} />
         <Tab.Screen name="Airbnb" component={AirbnbScreen} />
-        <Tab.Screen name="Cars" component={CarsScreen} />      
+        <Tab.Screen name="Cars" component={CarsScreen} />
       </Tab.Navigator>
     </View>
   );

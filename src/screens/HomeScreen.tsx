@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types'; // Update this path if needed
 import PopularList from '../components/PopularList'; // Import your popular cards component
 import PopularCategories from '../components/PopularCategories';
+import UserProfileAvatar from '../components/UserProfileAvatar'; // Import your user profile avatar component
 
 
 const HomeScreen: React.FC = () => {
@@ -28,6 +29,17 @@ return (
       contentContainerStyle={{ paddingBottom: 100 }}
       renderItem={() => (
         <>
+        <UserProfileAvatar
+        isFirstTimeUser={false}
+        isLoggedIn={false}
+        onSignInPress={() => {
+          // trigger login flow
+          console.log('Navigate to Sign In');
+        }}
+        userName="GUEST USER"
+        avatarUrl="https://i.pravatar.cc/150?img=12"
+        />
+
           <GlassSearchBox
             placeholder="Ask AI to Plan Your Trip ..."
             onPress={() => navigation.navigate('Chat')}

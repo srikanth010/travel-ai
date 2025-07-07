@@ -64,7 +64,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     setLoading(true);
 
     try {
-      const response = await axios.post('https://covered-asbestos-expansys-blue.trycloudflare.com/chat', {
+      const response = await axios.post('https://nested-knows-hiking-recording.trycloudflare.com/chat', {
         message: textToSend,
       });
 

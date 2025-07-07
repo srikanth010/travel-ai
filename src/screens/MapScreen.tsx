@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const AirbnbScreen: React.FC = () => {
+const MapScreen: React.FC = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Airbnb Screen</Text>
-      <Text style={styles.description}>This is the Airbnb screen where you can view car details.</Text>
+      <Text style={styles.title}>Map Screen</Text>
+      <Text style={styles.description}>This is the Map screen where you can view car details.</Text>
     </View>
   );
 };
@@ -30,4 +30,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AirbnbScreen;
+export default MapScreen;

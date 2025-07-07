@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet,ScrollView } from 'react-native';
+import { View, Text, StyleSheet,FlatList } from 'react-native';
 import GlassSearchBox from '../components/GlassSearchBar';
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
@@ -11,30 +11,37 @@ import PopularCategories from '../components/PopularCategories';
 
 const HomeScreen: React.FC = () => {
 const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  return (
-    <View style={styles.container}>
-      <BlurView
-          style={styles.glassEffect}
-          blurType="light"
-          blurAmount={20}
-          reducedTransparencyFallbackColor="white"
-        />
+const data = [{ key: 'content' }]; // dummy data to use FlatList
 
-    <ScrollView
-      contentContainerStyle={{ paddingBottom: 100 }}
+return (
+  <View style={styles.container}>
+    <BlurView
+      style={styles.glassEffect}
+      blurType="light"
+      blurAmount={20}
+      reducedTransparencyFallbackColor="white"
+    />
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.key}
       showsVerticalScrollIndicator={false}
-    >
-      <GlassSearchBox
-        placeholder="Ask AI to Plan Your Trip ..."
-        onPress={() => navigation.navigate('Chat')}
-        style={{ marginBottom: 24 }}
-      />
-
-      <PopularCategories onCategoryPress={(category) => {
-        console.log('User tapped:', category);
-      }} />
-      <PopularList />
-    </ScrollView>
+      contentContainerStyle={{ paddingBottom: 100 }}
+      renderItem={() => (
+        <>
+          <GlassSearchBox
+            placeholder="Ask AI to Plan Your Trip ..."
+            onPress={() => navigation.navigate('Chat')}
+            style={{ marginBottom: 24 }}
+          />
+          <PopularCategories
+            onCategoryPress={(category) => {
+              console.log('User tapped:', category);
+            }}
+          />
+          <PopularList />
+        </>
+      )}
+    />
   </View>
 );
 

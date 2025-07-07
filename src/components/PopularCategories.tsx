@@ -13,10 +13,11 @@ const { width: screenWidth } = Dimensions.get('window');
 const categories = [
     { id: '1', title: 'Flights', icon: <MaterialIcons name="flight" size={28} color="#fff" /> },
     { id: '2', title: 'Hotels', icon: <MaterialIcons name="hotel" size={26} color="#fff" /> },
-    { id: '3', title: 'Experiences', icon: <MaterialIcons name="attractions" size={30} color="#fff" /> },
-    { id: '4', title: 'Restaurants', icon: <Ionicons name="restaurant" size={28} color="#fff" /> },
-    { id: '5', title: 'Hikes', icon: <Icon name="hiking" size={30} color="#fff" /> },
-    { id: '6', title: 'Deals', icon: <Ionicons name="pricetag" size={28} color="#fff" /> },
+    { id: '4', title: 'Rental Cars', icon: <Ionicons name="car" size={30} color="#fff" /> },
+    { id: '5', title: 'Experiences', icon: <MaterialIcons name="attractions" size={30} color="#fff" /> },
+    { id: '6', title: 'Restaurants', icon: <Ionicons name="restaurant" size={28} color="#fff" /> },
+    { id: '7', title: 'Hikes', icon: <Icon name="hiking" size={30} color="#fff" /> },
+    { id: '8', title: 'Deals', icon: <Ionicons name="pricetag" size={28} color="#fff" /> },
   ];
 
 

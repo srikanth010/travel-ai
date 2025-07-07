@@ -8,7 +8,7 @@ import { BlurView } from '@react-native-community/blur';
 import HomeScreen from '../screens/HomeScreen';
 import FavoriteScreen from '../screens/FavoriteScreen';
 import HotelsScreen from '../screens/HotelsScreen';
-import AirbnbScreen from '../screens/AirbnbScreen';
+import MapScreen from '../screens/MapScreen';
 import CarsScreen from '../screens/CarScreen';
 import VideoFeedScreen from '../screens/VideoScreen';
 
@@ -24,9 +24,9 @@ const AppNavigator = () => {
             let iconName;
             if (route.name === 'Home') iconName = 'home';
             else if (route.name === 'Videos') iconName = 'videocam';
+            else if (route.name === 'map') iconName = 'map';
             else if (route.name === 'Favorite') iconName = 'heart';
             else if (route.name === 'Hotels') iconName = 'bed';
-            else if (route.name === 'Airbnb') iconName = 'home-outline';
             else if (route.name === 'Cars') iconName = 'car';
 
             return (
@@ -70,9 +70,9 @@ const AppNavigator = () => {
       >
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Videos" component={VideoFeedScreen} />
+        <Tab.Screen name="map" component={MapScreen} />
         <Tab.Screen name="Favorite" component={FavoriteScreen} />
         <Tab.Screen name="Hotels" component={HotelsScreen} />
-        <Tab.Screen name="Airbnb" component={AirbnbScreen} />
         <Tab.Screen name="Cars" component={CarsScreen} />
       </Tab.Navigator>
     </View>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const FlightScreen: React.FC = () => {
+const FavoriteScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FlightScreen Screen</Text>
@@ -30,4 +30,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FlightScreen;
+export default FavoriteScreen;

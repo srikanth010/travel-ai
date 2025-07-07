@@ -5,20 +5,23 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AppNavigator from './src/navigation/AppNavigator'; // Your bottom tabs
 import ChatScreen from './src/screens/ChatScreen'; // Import your hidden screen
 import { LogBox } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 LogBox.ignoreLogs(['Text strings must be rendered']); // Temporarily suppress
 
 const RootStack = createNativeStackNavigator();
 
 const App = () => {
   return (
-    <View style={styles.container}>
-      <NavigationContainer>
-        <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          <RootStack.Screen name="MainTabs" component={AppNavigator} />
-          <RootStack.Screen name="Chat" component={ChatScreen} />
-        </RootStack.Navigator>
-      </NavigationContainer>
-    </View>
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }} edges={['bottom', 'left', 'right']}>
+        <NavigationContainer>
+          <RootStack.Navigator screenOptions={{ headerShown: false }}>
+            <RootStack.Screen name="MainTabs" component={AppNavigator} />
+            <RootStack.Screen name="Chat" component={ChatScreen} />
+          </RootStack.Navigator>
+        </NavigationContainer>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 

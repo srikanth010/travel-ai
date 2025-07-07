@@ -43,7 +43,7 @@ const AppNavigator = () => {
           },
           tabBarStyle: {
             position: 'absolute',
-            height: 80,
+            height: 60,
             margin: 20,
             paddingBottom: 0,
             paddingTop: 10,

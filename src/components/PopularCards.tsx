@@ -1,8 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '@react-navigation/native';
 
 interface CardItemProps {
   image: ImageSourcePropType;
@@ -11,25 +9,11 @@ interface CardItemProps {
 }
 
 const PopularCard: React.FC<CardItemProps> = ({ image, title, onPress }) => {
-  const navigation = useNavigation<NavigationProp<any>>();
-
-  const handlePress = () => {
-    if (onPress) return onPress();
-    navigation.navigate('Chat', {
-      preloadMessage: `Plan a trip to ${title}`,
-    });
-  };
-
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={handlePress}
-      activeOpacity={0.8}
-      accessibilityLabel={`Plan a trip to ${title}`}
-    >
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <Image source={image} style={styles.image} resizeMode="cover" />
       <BlurView style={styles.blurOverlay} blurType="light" blurAmount={10} />
-      <Text style={styles.title}>{title || 'Destination'}</Text>
+      <Text style={styles.title}>{title}</Text>
     </TouchableOpacity>
   );
 };

@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet,ScrollView } from 'react-native';
 import GlassSearchBox from '../components/GlassSearchBar';
 import { BlurView } from '@react-native-community/blur';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types'; // Update this path if needed
 import PopularList from '../components/PopularList'; // Import your popular cards component
+import PopularCategories from '../components/PopularCategories';
 
 
 const HomeScreen: React.FC = () => {
@@ -19,23 +20,34 @@ const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(
           reducedTransparencyFallbackColor="white"
         />
 
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 100 }}
+      showsVerticalScrollIndicator={false}
+    >
       <GlassSearchBox
         placeholder="Ask AI to Plan Your Trip ..."
         onPress={() => navigation.navigate('Chat')}
-        style={{ marginTop: 20, width: '90%' }}
+        style={{ marginBottom: 24 }}
       />
-      <PopularList/> {/* Your glassmorphism card component */}
-    </View>
-  );
+
+      <PopularCategories onCategoryPress={(category) => {
+        console.log('User tapped:', category);
+      }} />
+      <PopularList />
+    </ScrollView>
+  </View>
+);
+
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black', // Transparent to allow BlurView to show
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'black',
+    paddingTop: 60, // or StatusBar.currentHeight if dynamic
+    paddingHorizontal: 20,
   },
+  
   title: {
     fontSize: 24,
     fontWeight: 'bold',

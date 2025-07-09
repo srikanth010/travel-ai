@@ -1,33 +1,51 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, PermissionsAndroid, Platform } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
+import Geolocation from 'react-native-geolocation-service';
 
-const MapScreen: React.FC = () => {
+export default function MapScreen() {
+  const [region, setRegion] = useState<Region | null>(null);
+
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) return;
+      }
+      Geolocation.getCurrentPosition(
+        position => {
+          const { latitude, longitude } = position.coords;
+          setRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        },
+        error => {
+          console.warn(error.code, error.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    };
+
+    requestLocationPermission();
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Map Screen</Text>
-      <Text style={styles.description}>This is the Map screen where you can view car details.</Text>
+      {region && (
+        <MapView style={styles.map} region={region}>
+          <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} />
+        </MapView>
+      )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'black',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  map: { width: '100%', height: '100%' },
 });
-
-export default MapScreen;

@@ -7,11 +7,13 @@ import ChatScreen from './src/screens/ChatScreen'; // Import your hidden screen
 import { LogBox } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 LogBox.ignoreLogs(['Text strings must be rendered']); // Temporarily suppress
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const RootStack = createNativeStackNavigator();
 
 const App = () => {
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }} edges={['bottom', 'left', 'right']}>
         <NavigationContainer>
@@ -22,6 +24,7 @@ const App = () => {
         </NavigationContainer>
       </SafeAreaView>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 };
 

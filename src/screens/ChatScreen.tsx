@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react'; // Add useCallback
 import PromptSelector from '../components/PromptSelector';
 
 import {
@@ -20,10 +20,22 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
 import axios from 'axios';
+import FlightResultsSheet from '../components/FlightResultsSheet';
+
+
+interface FlightCard {
+  airline: string;
+  origin: string;
+  destination: string;
+  departureDateTime: string;
+  returnDateTime: string;
+  price: number;
+}
 
 interface Message {
   sender: 'user' | 'ai';
   text: string;
+  cards?: FlightCard; // Array of travel results (e.g., flights)
 }
 
 const ChatScreen = () => {
@@ -37,13 +49,56 @@ const ChatScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
   const hasPreloaded = useRef(false);
+  const sheetRef = useRef<any>(null);
+  const [userClosedSheet, setUserClosedSheet] = useState(false);
+  const lastFlightCardCountRef = useRef(0);
+  const [lastFlightCardCount, setLastFlightCardCount] = useState(0);
+
+  
+  // This `flightCards` derivation is still fine for rendering the sheet
+  // However, the useEffect will now calculate them internally.
+  const flightCards = messages
+    .filter((m) => m.sender === 'ai' && m.cards && m.cards.length > 0)
+    .flatMap((m) => m.cards);
+
+  // ✅ CRITICAL CHANGE HERE: Depend on `messages` directly
+  // In ChatScreen.tsx, the useEffect for messages:
+  useEffect(() => {
+    const currentFlightCards = messages
+      .filter((m) => m.sender === 'ai' && m.cards && Array.isArray(m.cards) && m.cards.length > 0)
+      .flatMap((m) => m.cards);
+  
+    // Only expand if new cards came and user hasn't closed
+    if (
+      currentFlightCards.length > 0 &&
+      currentFlightCards.length !== lastFlightCardCount &&
+      !userClosedSheet
+    ) {
+      setLastFlightCardCount(currentFlightCards.length);
+      sheetRef.current?.expand?.();
+    }
+  
+    // Auto-close if no cards left (like navigating back or cleared)
+    if (currentFlightCards.length === 0) {
+      sheetRef.current?.close?.();
+    }
+  }, [messages, userClosedSheet]);
+  
+  
+
+  useEffect(() => {
+    if (flightCards.length && sheetRef.current?.expand) {
+      sheetRef.current.expand();
+    }
+  }, [flightCards]);  
+
 
   useEffect(() => {
     if (preloadedMessage && !hasPreloaded.current) {
       const reformattedPrompt = `
 Give a short, timely reason why ${preloadedMessage} is a trending destination.
 Mention current events, weather, or affordability if relevant.
-Keep it under 2 sentences. 
+Keep it under 2 sentences.
 Then ask: "Want me to plan your trip or find the cheapest way to go?".
 `;
       handleSend(reformattedPrompt, false);
@@ -51,35 +106,61 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     }
   }, [preloadedMessage]);
 
-  const handleSend = async (overrideText?: string, showUserMessage: boolean = true) => {
-    const textToSend = overrideText ?? input;
+
+  // Wrap handleSend in useCallback to prevent unnecessary re-creations (good practice)
+  const handleSend = useCallback(async (overrideText?: string, showUserMessage: boolean = true) => {
+    const textToSend = overrideText ?? input; // input is a state, captured when handleSend is created unless updated via ref
     if (!textToSend.trim()) return;
 
     if (showUserMessage) {
       const userMessage: Message = { sender: 'user', text: textToSend };
       setMessages((prev) => [...prev, userMessage]);
-      setInput('');
+      // Note: input state might be stale here if not cleared immediately.
+      // If issue persists, consider clearing input via ref or a controlled component pattern more strictly.
+      setInput(''); // Clearing immediately is generally fine.
     }
 
     setLoading(true);
+    setDynamicPrompts([]);
 
     try {
-      const response = await axios.post('https://internet-consciousness-society-consider.trycloudflare.com/chat', {
+      
+      const response = await axios.post('https://southeast-can-ccd-permit.trycloudflare.com/chat', {
         message: textToSend,
       });
 
-      console.log('Raw API response:', response.data);
+      console.log('Full Axios Response:', response);
+      console.log('Response Data:', response?.data);
+      console.log('Response Data Cards Property:', response?.data?.cards);
 
       const replyText = response?.data?.reply ?? 'Sorry, something went wrong.';
-      const prompts = response?.data?.prompts ?? [];
+const prompts = response?.data?.prompts ?? [];
+const rawCards = response?.data?.cards ?? [];
 
-      const aiMessage: Message = {
-        sender: 'ai',
-        text: replyText.trim(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
+const transformedCards = rawCards.map((card: any) => ({
+  airline: card.airline,
+  price: card.price,
+  origin: card.departure,
+  destination: card.arrival,
+  departureDateTime: card.departureDateTime,
+  returnDateTime: card.returnDateTime,
+}));
 
-      // Filter prompts to only show relevant travel suggestions
+if (transformedCards.length > 0) {
+  setUserClosedSheet(false); // Only reopen sheet if new cards are available
+}
+
+const aiMessage: Message = {
+  sender: 'ai',
+  text: replyText.trim(),
+  cards: transformedCards,
+};
+
+setMessages((prev) => {
+  const newState = [...prev, aiMessage];
+  return newState;
+});
+
       const isTravelRelated = (prompt: string) => {
         const keywords = ['flight', 'hotel', 'visa', 'travel', 'trip', 'itinerary', 'places'];
         return keywords.some((k) => prompt.toLowerCase().includes(k));
@@ -90,8 +171,12 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+
     } catch (err) {
       console.error('Error talking to AI:', err);
+      if (axios.isAxiosError(err)) {
+          console.error('Axios Error Details:', err.response?.data, err.message, err.code);
+      }
       const errorMsg: Message = {
         sender: 'ai',
         text: '⚠️ There was an error talking to AI. Please try again later.',
@@ -100,26 +185,30 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     } finally {
       setLoading(false);
     }
-  };
+  }, [input]); // Added input to dependencies because it's used directly in textToSend
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const aiBackgroundColors = ['#505050', '#606060', '#707070'];
-    const backgroundColor =
-      item.sender === 'ai' ? aiBackgroundColors[index % aiBackgroundColors.length] : '#1e1e1e';
-
+  const renderMessage = ({ item }: { item: Message }) => {
+    // ✅ Add this null/undefined check for the item itself
+    if (item === undefined || item === null) {
+      console.error("CRITICAL ERROR: FlatList received an undefined/null item!");
+      console.log("Problematic messages array (inside renderMessage):", messages); 
+      return null; 
+    }
+  
+    // ✅ And add a log to confirm what each item looks like
+    console.log('Rendering message item:', item);
+  
     return (
-      <View
-        style={[
-          styles.message,
-          item.sender === 'user'
-            ? styles.userMessage
-            : { ...styles.aiMessage },
-        ]}
-      >
+      <View style={[
+        styles.message,
+        // This is where item.sender is accessed, so item must not be undefined here.
+        item.sender === 'user' ? styles.userMessage : styles.aiMessage,
+      ]}>
         <Text style={styles.messageText}>{item.text}</Text>
       </View>
     );
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,27 +222,15 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         keyboardVerticalOffset={insets.top + 50}
       >
         <View style={styles.chatContainer}>
-          <PromptSelector
-            onPromptSend={handleSend}
-            overridePrompts={dynamicPrompts}
-          />
-
+          <PromptSelector onPromptSend={handleSend} overridePrompts={dynamicPrompts} />
+          console.log('Messages array before FlatList render:', messages);
           <FlatList
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(_, i) => i.toString()}
             contentContainerStyle={{ padding: 10 }}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }
           />
-
-          {loading && (
-            <View style={[styles.message, styles.aiMessage]}>
-              <Text style={styles.messageText}>AI is typing...</Text>
-            </View>
-          )}
         </View>
 
         <View style={{ paddingBottom: insets.bottom || 10 }}>
@@ -172,8 +249,18 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
           </BlurView>
         </View>
       </KeyboardAvoidingView>
+      <FlightResultsSheet 
+    ref={sheetRef} 
+    cards={flightCards} 
+    onClose={() => {
+      setUserClosedSheet(true);
+      setLastFlightCardCount(flightCards.length); // Freeze count to current so it won't re-open
+    }}
+     // <-- IMPORTANT: Pass this callback
+/>
     </SafeAreaView>
   );
+
 };
 
 const styles = StyleSheet.create({

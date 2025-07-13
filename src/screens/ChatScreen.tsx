@@ -50,7 +50,7 @@ const ChatScreen = () => {
   const insets = useSafeAreaInsets();
   const hasPreloaded = useRef(false);
   const sheetRef = useRef<any>(null);
-  const [userClosedSheet, setUserClosedSheet] = useState(false);
+  const userClosedSheetRef = useRef(false);
   const lastFlightCardCountRef = useRef(0);
   const [lastFlightCardCount, setLastFlightCardCount] = useState(0);
 
@@ -65,32 +65,19 @@ const ChatScreen = () => {
   // In ChatScreen.tsx, the useEffect for messages:
   useEffect(() => {
     const currentFlightCards = messages
-      .filter((m) => m.sender === 'ai' && m.cards && Array.isArray(m.cards) && m.cards.length > 0)
+      .filter((m) => m.sender === 'ai' && Array.isArray(m.cards) && m.cards.length > 0)
       .flatMap((m) => m.cards);
   
-    // Only expand if new cards came and user hasn't closed
-    if (
-      currentFlightCards.length > 0 &&
-      currentFlightCards.length !== lastFlightCardCount &&
-      !userClosedSheet
-    ) {
-      setLastFlightCardCount(currentFlightCards.length);
+    const hasNewCards = currentFlightCards.length > 0;
+  
+    if (hasNewCards && !userClosedSheetRef.current) {
       sheetRef.current?.expand?.();
     }
   
-    // Auto-close if no cards left (like navigating back or cleared)
-    if (currentFlightCards.length === 0) {
+    if (!hasNewCards) {
       sheetRef.current?.close?.();
     }
-  }, [messages, userClosedSheet]);
-  
-  
-
-  useEffect(() => {
-    if (flightCards.length && sheetRef.current?.expand) {
-      sheetRef.current.expand();
-    }
-  }, [flightCards]);  
+  }, [messages]);
 
 
   useEffect(() => {
@@ -147,7 +134,7 @@ const transformedCards = rawCards.map((card: any) => ({
 }));
 
 if (transformedCards.length > 0) {
-  setUserClosedSheet(false); // Only reopen sheet if new cards are available
+  userClosedSheetRef.current = false; // ✅ Reset the manual close flag
 }
 
 const aiMessage: Message = {
@@ -249,14 +236,13 @@ setMessages((prev) => {
           </BlurView>
         </View>
       </KeyboardAvoidingView>
-      <FlightResultsSheet 
-    ref={sheetRef} 
-    cards={flightCards} 
-    onClose={() => {
-      setUserClosedSheet(true);
-      setLastFlightCardCount(flightCards.length); // Freeze count to current so it won't re-open
-    }}
-     // <-- IMPORTANT: Pass this callback
+      <FlightResultsSheet
+  ref={sheetRef}
+  cards={flightCards}
+  onClose={() => {
+    userClosedSheetRef.current = true; // ✅ Correct
+    setLastFlightCardCount(flightCards.length);
+  }}
 />
     </SafeAreaView>
   );

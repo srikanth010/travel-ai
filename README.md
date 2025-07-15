@@ -100,3 +100,34 @@ To learn more about React Native, take a look at the following resources:
 arch -x86_64 pod install && cd ..
 
 npx react-native run-ios
+
+
+# 🧠 Trvlora Dev Setup Guide
+
+This README explains how to start the local development stack for **Trvlora**, which includes:
+
+- [Ollama](https://ollama.com) — local LLM server (e.g., Mistral)
+- [FastAPI](https://fastapi.tiangolo.com/) — backend API server
+- [React Native](https://reactnative.dev/) — mobile app frontend
+- [IOSPOD] - cd ios && pod install  && cd ..
+- [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) — tunnel to expose local API for mobile
+
+---
+
+## 🚀 1. Start Ollama Server
+
+Make sure you've already pulled a model (e.g., `mistral`):
+```bash
+ollama pull mistral
+
+Then run the server:
+ollama run mistral
+
+To verify:
+curl http://localhost:11434
+
+
+⚙️ 2. Start FastAPI Backend
+Install dependencies if not already:
+pip install -r requirements.txt
+uvicorn app:app --reload

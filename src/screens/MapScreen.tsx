@@ -32,7 +32,7 @@ export default function MapScreen() {
     let prompts = [];
 
     try {
-      const aiRes = await axios.post('https://southeast-can-ccd-permit.trycloudflare.com/ai-map', {
+      const aiRes = await axios.post('https://local.trvlora.com/ai-map', {
         message: userMessage,
         latitude: region.latitude,
         longitude: region.longitude,

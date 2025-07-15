@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'; // Add useCallback
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PromptSelector from '../components/PromptSelector';
-
 import {
   View,
   Text,
@@ -22,6 +21,14 @@ import { BlurView } from '@react-native-community/blur';
 import axios from 'axios';
 import FlightResultsSheet from '../components/FlightResultsSheet';
 
+interface FilterOptions {
+  airlines?: string[];
+  bagsIncluded?: boolean;
+  cabins?: string[];
+  duration?: { min?: number; max?: number };
+  price?: { min?: number; max?: number };
+  stops?: number[];
+}
 
 interface FlightCard {
   airline: string;
@@ -30,12 +37,14 @@ interface FlightCard {
   departureDateTime: string;
   returnDateTime: string;
   price: number;
+  segments: number;
+  durationMinutes: number;
 }
 
 interface Message {
   sender: 'user' | 'ai';
   text: string;
-  cards?: FlightCard; // Array of travel results (e.g., flights)
+  cards?: FlightCard[];
 }
 
 const ChatScreen = () => {
@@ -51,34 +60,46 @@ const ChatScreen = () => {
   const hasPreloaded = useRef(false);
   const sheetRef = useRef<any>(null);
   const userClosedSheetRef = useRef(false);
-  const lastFlightCardCountRef = useRef(0);
-  const [lastFlightCardCount, setLastFlightCardCount] = useState(0);
 
-  
-  // This `flightCards` derivation is still fine for rendering the sheet
-  // However, the useEffect will now calculate them internally.
-  const flightCards = messages
-    .filter((m) => m.sender === 'ai' && m.cards && m.cards.length > 0)
-    .flatMap((m) => m.cards);
+  const [availableFiltersOptions, setAvailableFiltersOptions] = useState<FilterOptions>({});
+  const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
 
-  // ✅ CRITICAL CHANGE HERE: Depend on `messages` directly
-  // In ChatScreen.tsx, the useEffect for messages:
-  useEffect(() => {
-    const currentFlightCards = messages
+  const allFlightCards: FlightCard[] = useMemo(() => { // 👈 Added type annotation here
+    return messages
       .filter((m) => m.sender === 'ai' && Array.isArray(m.cards) && m.cards.length > 0)
-      .flatMap((m) => m.cards);
-  
-    const hasNewCards = currentFlightCards.length > 0;
-  
-    if (hasNewCards && !userClosedSheetRef.current) {
-      sheetRef.current?.expand?.();
-    }
-  
-    if (!hasNewCards) {
-      sheetRef.current?.close?.();
-    }
+      .flatMap((m) => m.cards || []);
   }, [messages]);
 
+  const flightCards = useMemo(() => {
+    let filteredCards: FlightCard[] = allFlightCards;
+
+    if (appliedFilters.airlines?.length) {
+      filteredCards = filteredCards.filter(card => appliedFilters.airlines!.includes(card.airline));
+    }
+
+    if (appliedFilters.stops?.length) {
+      filteredCards = filteredCards.filter(card => appliedFilters.stops!.includes(card.segments - 1));
+    }
+
+    if (appliedFilters.price) {
+      const { min, max } = appliedFilters.price;
+      if (min !== undefined) filteredCards = filteredCards.filter(card => card.price >= min);
+      if (max !== undefined) filteredCards = filteredCards.filter(card => card.price <= max);
+    }
+
+    return filteredCards;
+  }, [allFlightCards, appliedFilters]);
+
+  useEffect(() => {
+    // Only open the sheet initially if there are any flight cards from the AI and the user hasn't closed it.
+    // The sheet should remain open even if filters result in no matches.
+    const hasInitialCards = allFlightCards.length > 0;
+    if (hasInitialCards && !userClosedSheetRef.current) {
+      sheetRef.current?.expand?.();
+    } else if (!hasInitialCards) {
+      sheetRef.current?.close?.();
+    }
+  }, [allFlightCards]); // Dependent on the original, unfiltered flight cards
 
   useEffect(() => {
     if (preloadedMessage && !hasPreloaded.current) {
@@ -91,117 +112,111 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       handleSend(reformattedPrompt, false);
       hasPreloaded.current = true;
     }
-  }, [preloadedMessage]);
+  }, [preloadedMessage, handleSend]);
 
-
-  // Wrap handleSend in useCallback to prevent unnecessary re-creations (good practice)
   const handleSend = useCallback(async (overrideText?: string, showUserMessage: boolean = true) => {
-    const textToSend = overrideText ?? input; // input is a state, captured when handleSend is created unless updated via ref
+    const textToSend = overrideText ?? input;
     if (!textToSend.trim()) return;
 
     if (showUserMessage) {
-      const userMessage: Message = { sender: 'user', text: textToSend };
-      setMessages((prev) => [...prev, userMessage]);
-      // Note: input state might be stale here if not cleared immediately.
-      // If issue persists, consider clearing input via ref or a controlled component pattern more strictly.
-      setInput(''); // Clearing immediately is generally fine.
+      setMessages(prev => [...prev, { sender: 'user', text: textToSend }]);
+      setInput('');
     }
 
     setLoading(true);
     setDynamicPrompts([]);
+    setAppliedFilters({}); // Reset filters when a new search is performed
 
     try {
-      
-      const response = await axios.post('https://southeast-can-ccd-permit.trycloudflare.com/chat', {
+      const response = await axios.post('https://local.trvlora.com/chat', {
         message: textToSend,
       });
 
-      console.log('Full Axios Response:', response);
-      console.log('Response Data:', response?.data);
-      console.log('Response Data Cards Property:', response?.data?.cards);
-
       const replyText = response?.data?.reply ?? 'Sorry, something went wrong.';
-const prompts = response?.data?.prompts ?? [];
-const rawCards = response?.data?.cards ?? [];
+      const prompts = response?.data?.prompts ?? [];
 
-const transformedCards = rawCards.map((card: any) => ({
-  airline: card.airline,
-  price: card.price,
-  origin: card.departure,
-  destination: card.arrival,
-  departureDateTime: card.departureDateTime,
-  returnDateTime: card.returnDateTime,
-}));
+      const rawCards = Array.isArray(response?.data?.cards?.flights)
+        ? response.data.cards.flights
+        : [];
+      const filtersData = response?.data?.cards?.filters ?? {};
+      setAvailableFiltersOptions(filtersData);
 
-if (transformedCards.length > 0) {
-  userClosedSheetRef.current = false; // ✅ Reset the manual close flag
-}
+      const transformedCards: FlightCard[] = rawCards.map((card: any) => ({
+        airline: card.airline,
+        price: parseFloat(card.price),
+        origin: card.departure,
+        destination: card.arrival,
+        departureDateTime: card.departureDateTime,
+        returnDateTime: card.returnDateTime,
+        segments: card.segments,
+        durationMinutes: card.durationMinutes,
+      }));
 
-const aiMessage: Message = {
-  sender: 'ai',
-  text: replyText.trim(),
-  cards: transformedCards,
-};
+      if (transformedCards.length > 0) {
+        userClosedSheetRef.current = false; // Reset the flag when new cards arrive
+      }
 
-setMessages((prev) => {
-  const newState = [...prev, aiMessage];
-  return newState;
-});
+      setMessages(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: replyText.trim(),
+          cards: transformedCards,
+        },
+      ]);
 
-      const isTravelRelated = (prompt: string) => {
-        const keywords = ['flight', 'hotel', 'visa', 'travel', 'trip', 'itinerary', 'places'];
-        return keywords.some((k) => prompt.toLowerCase().includes(k));
-      };
-      const filteredPrompts = prompts.filter(isTravelRelated);
-      setDynamicPrompts(filteredPrompts);
+      const isTravelPrompt = (p: string) =>
+        ['flight', 'hotel', 'visa', 'travel', 'trip', 'itinerary', 'places'].some(k =>
+          p.toLowerCase().includes(k)
+        );
+      setDynamicPrompts(prompts.filter(isTravelPrompt));
 
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-
     } catch (err) {
-      console.error('Error talking to AI:', err);
-      if (axios.isAxiosError(err)) {
-          console.error('Axios Error Details:', err.response?.data, err.message, err.code);
-      }
-      const errorMsg: Message = {
-        sender: 'ai',
-        text: '⚠️ There was an error talking to AI. Please try again later.',
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      console.error('AI Error:', err);
+      setMessages(prev => [
+        ...prev,
+        { sender: 'ai', text: '⚠️ There was an error talking to AI. Please try again later.' },
+      ]);
     } finally {
       setLoading(false);
     }
-  }, [input]); // Added input to dependencies because it's used directly in textToSend
+  }, [input]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    // ✅ Add this null/undefined check for the item itself
-    if (item === undefined || item === null) {
-      console.error("CRITICAL ERROR: FlatList received an undefined/null item!");
-      console.log("Problematic messages array (inside renderMessage):", messages); 
-      return null; 
-    }
-  
-    // ✅ And add a log to confirm what each item looks like
-    console.log('Rendering message item:', item);
-  
-    return (
-      <View style={[
+  const renderMessage = ({ item }: { item: Message }) => (
+    <View
+      style={[
         styles.message,
-        // This is where item.sender is accessed, so item must not be undefined here.
         item.sender === 'user' ? styles.userMessage : styles.aiMessage,
-      ]}>
-        <Text style={styles.messageText}>{item.text}</Text>
-      </View>
-    );
-  };
+      ]}
+    >
+      <Text style={styles.messageText}>{item.text}</Text>
+    </View>
+  );
 
+  const handleApplyFilters = useCallback((filters: FilterOptions) => {
+    setAppliedFilters(filters);
+    // After applying filters, we want to ensure the sheet remains open
+    // and shows the (potentially empty) filtered results.
+    // The onBackToResults in FlightFiltersPanel will handle switching view.
+    sheetRef.current?.expand(); // Ensure the sheet is expanded (or remains expanded)
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => sheetRef.current?.showFilters?.()}
+        >
+          <Text style={styles.filterButtonText}>Filter</Text>
+        </TouchableOpacity>
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -210,7 +225,6 @@ setMessages((prev) => {
       >
         <View style={styles.chatContainer}>
           <PromptSelector onPromptSend={handleSend} overridePrompts={dynamicPrompts} />
-          console.log('Messages array before FlatList render:', messages);
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -236,17 +250,19 @@ setMessages((prev) => {
           </BlurView>
         </View>
       </KeyboardAvoidingView>
+
       <FlightResultsSheet
-  ref={sheetRef}
-  cards={flightCards}
-  onClose={() => {
-    userClosedSheetRef.current = true; // ✅ Correct
-    setLastFlightCardCount(flightCards.length);
-  }}
-/>
+        ref={sheetRef}
+        cards={flightCards}
+        availableFilters={availableFiltersOptions}
+        initialFilters={appliedFilters}
+        onApplyFilters={handleApplyFilters}
+        onClose={() => {
+          userClosedSheetRef.current = true;
+        }}
+      />
     </SafeAreaView>
   );
-
 };
 
 const styles = StyleSheet.create({
@@ -254,15 +270,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
   backButton: {
     padding: 10,
-    margin: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 10,
-    alignSelf: 'flex-start',
   },
   backButtonText: {
     color: '#fff',
+    fontWeight: '600',
+  },
+  filterButton: {
+    padding: 10,
+    backgroundColor: 'rgba(0, 191, 255, 0.3)',
+    borderRadius: 10,
+  },
+  filterButtonText: {
+    color: '#00bfff',
     fontWeight: '600',
   },
   chatContainer: {
@@ -290,7 +320,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     padding: 8,
-    overflow: 'hidden',
     borderRadius: 10,
   },
   inputContainer: {

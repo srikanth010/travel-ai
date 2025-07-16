@@ -1,3 +1,4 @@
+// ChatScreen.tsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PromptSelector from '../components/PromptSelector';
 import {
@@ -20,6 +21,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from '@react-native-community/blur';
 import axios from 'axios';
 import FlightResultsSheet from '../components/FlightResultsSheet';
+
+// Import your theme variables
+import { Colors, Spacing, BorderRadius, FontSize } from '../theme/styles';
 
 interface FilterOptions {
   airlines?: string[];
@@ -64,7 +68,7 @@ const ChatScreen = () => {
   const [availableFiltersOptions, setAvailableFiltersOptions] = useState<FilterOptions>({});
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
 
-  const allFlightCards: FlightCard[] = useMemo(() => { // 👈 Added type annotation here
+  const allFlightCards: FlightCard[] = useMemo(() => {
     return messages
       .filter((m) => m.sender === 'ai' && Array.isArray(m.cards) && m.cards.length > 0)
       .flatMap((m) => m.cards || []);
@@ -91,15 +95,13 @@ const ChatScreen = () => {
   }, [allFlightCards, appliedFilters]);
 
   useEffect(() => {
-    // Only open the sheet initially if there are any flight cards from the AI and the user hasn't closed it.
-    // The sheet should remain open even if filters result in no matches.
     const hasInitialCards = allFlightCards.length > 0;
     if (hasInitialCards && !userClosedSheetRef.current) {
       sheetRef.current?.expand?.();
     } else if (!hasInitialCards) {
       sheetRef.current?.close?.();
     }
-  }, [allFlightCards]); // Dependent on the original, unfiltered flight cards
+  }, [allFlightCards]);
 
   useEffect(() => {
     if (preloadedMessage && !hasPreloaded.current) {
@@ -125,7 +127,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
 
     setLoading(true);
     setDynamicPrompts([]);
-    setAppliedFilters({}); // Reset filters when a new search is performed
+    setAppliedFilters({});
 
     try {
       const response = await axios.post('https://local.trvlora.com/chat', {
@@ -153,7 +155,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       }));
 
       if (transformedCards.length > 0) {
-        userClosedSheetRef.current = false; // Reset the flag when new cards arrive
+        userClosedSheetRef.current = false;
       }
 
       setMessages(prev => [
@@ -198,10 +200,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
 
   const handleApplyFilters = useCallback((filters: FilterOptions) => {
     setAppliedFilters(filters);
-    // After applying filters, we want to ensure the sheet remains open
-    // and shows the (potentially empty) filtered results.
-    // The onBackToResults in FlightFiltersPanel will handle switching view.
-    sheetRef.current?.expand(); // Ensure the sheet is expanded (or remains expanded)
+    sheetRef.current?.expand();
   }, []);
 
   return (
@@ -221,7 +220,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 50}
+        keyboardVerticalOffset={insets.top + Spacing.xl * 2} // Adjusted offset using Spacing
       >
         <View style={styles.chatContainer}>
           <PromptSelector onPromptSend={handleSend} overridePrompts={dynamicPrompts} />
@@ -230,16 +229,16 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(_, i) => i.toString()}
-            contentContainerStyle={{ padding: 10 }}
+            contentContainerStyle={{ padding: Spacing.md }} // Using Spacing
           />
         </View>
 
-        <View style={{ paddingBottom: insets.bottom || 10 }}>
+        <View style={{ paddingBottom: insets.bottom || Spacing.md }}> {/* Using Spacing */}
           <BlurView style={styles.inputContainer} blurType="dark" blurAmount={20}>
             <TextInput
               style={styles.input}
               placeholder="Ask AI to plan your trip..."
-              placeholderTextColor="#aaa"
+              placeholderTextColor={Colors.textMuted} // Using Colors variable
               value={input}
               onChangeText={setInput}
               multiline
@@ -268,44 +267,44 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: Colors.background, // Using Colors variable
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    marginTop: 10,
+    paddingHorizontal: Spacing.md, // Using Spacing
+    marginTop: Spacing.md, // Using Spacing
   },
   backButton: {
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 10,
+    padding: Spacing.md, // Using Spacing
+    backgroundColor: Colors.userBubble, // Using Colors variable
+    borderRadius: BorderRadius.lg, // Using BorderRadius
   },
   backButtonText: {
-    color: '#fff',
+    color: Colors.text, // Using Colors variable
     fontWeight: '600',
   },
   filterButton: {
-    padding: 10,
-    backgroundColor: 'rgba(0, 191, 255, 0.3)',
-    borderRadius: 10,
+    padding: Spacing.md, // Using Spacing
+    backgroundColor: Colors.aiBubble, // Reusing aiBubble color for consistency
+    borderRadius: BorderRadius.lg, // Using BorderRadius
   },
   filterButtonText: {
-    color: '#00bfff',
+    color: Colors.primary, // Using Colors variable
     fontWeight: '600',
   },
   chatContainer: {
     flex: 1,
-    marginHorizontal: 10,
-    marginBottom: 10,
-    borderRadius: 20,
+    marginHorizontal: Spacing.md, // Using Spacing
+    marginBottom: Spacing.md, // Using Spacing
+    borderRadius: BorderRadius.xl, // Using BorderRadius
     overflow: 'hidden',
   },
   message: {
-    padding: 12,
-    borderRadius: 14,
-    marginVertical: 4,
+    padding: Spacing.lg, // Using Spacing
+    borderRadius: BorderRadius.lg, // Using BorderRadius
+    marginVertical: Spacing.xs, // Using Spacing
     maxWidth: '75%',
   },
   userMessage: {
@@ -315,38 +314,38 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   messageText: {
-    color: '#FFFFFF',
-    backgroundColor: 'rgba(32, 162, 243, 0.2)',
-    fontSize: 16,
+    color: Colors.text, // Using Colors variable
+    backgroundColor: Colors.aiBubble, // Using Colors variable (already ai bubble)
+    fontSize: FontSize.md, // Using FontSize
     fontWeight: '500',
-    padding: 8,
-    borderRadius: 10,
+    padding: Spacing.sm, // Using Spacing
+    borderRadius: BorderRadius.lg, // Using BorderRadius
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: Spacing.md, // Using Spacing
+    borderRadius: BorderRadius.xl, // Using BorderRadius
+    backgroundColor: Colors.borderColor, // Using Colors variable for border/input background
   },
   input: {
     flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    color: Colors.text, // Using Colors variable
+    fontSize: FontSize.md, // Using FontSize
+    paddingVertical: Spacing.sm, // Using Spacing
+    paddingHorizontal: Spacing.lg, // Using Spacing
+    borderRadius: BorderRadius.lg, // Using BorderRadius
     maxHeight: 120,
   },
   sendButton: {
-    marginLeft: 10,
-    backgroundColor: '#00bfff',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    marginLeft: Spacing.md, // Using Spacing
+    backgroundColor: Colors.primary, // Using Colors variable
+    borderRadius: BorderRadius.lg, // Using BorderRadius
+    paddingVertical: Spacing.md, // Using Spacing
+    paddingHorizontal: Spacing.lg, // Using Spacing
   },
   sendButtonText: {
-    color: '#fff',
+    color: Colors.buttonText, // Using Colors variable
     fontWeight: 'bold',
   },
 });

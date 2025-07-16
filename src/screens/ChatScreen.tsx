@@ -1,4 +1,3 @@
-// ChatScreen.tsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PromptSelector from '../components/PromptSelector';
 import {
@@ -10,6 +9,8 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import {
   useNavigation,
@@ -22,7 +23,6 @@ import { BlurView } from '@react-native-community/blur';
 import axios from 'axios';
 import FlightResultsSheet from '../components/FlightResultsSheet';
 
-// Import your theme variables
 import { Colors, Spacing, BorderRadius, FontSize } from '../theme/styles';
 
 interface FilterOptions {
@@ -49,6 +49,7 @@ interface Message {
   sender: 'user' | 'ai';
   text: string;
   cards?: FlightCard[];
+  isTypingIndicator?: boolean;
 }
 
 const ChatScreen = () => {
@@ -57,7 +58,7 @@ const ChatScreen = () => {
   const preloadedMessage = route.params?.preloadMessage ?? '';
   const [messages, setMessages] = useState<Message[]>([]);
   const [dynamicPrompts, setDynamicPrompts] = useState<string[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(''); // This state will now also be updated by prompts
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
@@ -125,9 +126,16 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       setInput('');
     }
 
+    Keyboard.dismiss();
+
     setLoading(true);
-    setDynamicPrompts([]);
+    setDynamicPrompts([]); // Clear prompts when a new message is sent
     setAppliedFilters({});
+
+    setMessages(prev => [...prev, { sender: 'ai', text: 'AI is thinking...', isTypingIndicator: true }]);
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
 
     try {
       const response = await axios.post('https://local.trvlora.com/chat', {
@@ -158,6 +166,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         userClosedSheetRef.current = false;
       }
 
+      setMessages(prev => prev.filter(msg => !msg.isTypingIndicator));
       setMessages(prev => [
         ...prev,
         {
@@ -178,6 +187,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       }, 100);
     } catch (err) {
       console.error('AI Error:', err);
+      setMessages(prev => prev.filter(msg => !msg.isTypingIndicator));
       setMessages(prev => [
         ...prev,
         { sender: 'ai', text: '⚠️ There was an error talking to AI. Please try again later.' },
@@ -187,16 +197,31 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     }
   }, [input]);
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View
-      style={[
-        styles.message,
-        item.sender === 'user' ? styles.userMessage : styles.aiMessage,
-      ]}
-    >
-      <Text style={styles.messageText}>{item.text}</Text>
-    </View>
-  );
+  // NEW HANDLER: To update the input box
+  const handlePromptSelectForInput = useCallback((prompt: string) => {
+    setInput(prompt); // Set the input state to the selected prompt text
+  }, []);
+
+  const renderMessage = useCallback(({ item }: { item: Message }) => {
+    if (item.isTypingIndicator) {
+      return (
+        <View style={[styles.message, styles.aiMessage, styles.typingIndicatorContainer]}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.typingIndicatorText}>AI is thinking...</Text>
+        </View>
+      );
+    }
+    return (
+      <View
+        style={[
+          styles.message,
+          item.sender === 'user' ? styles.userMessage : styles.aiMessage,
+        ]}
+      >
+        <Text style={styles.messageText}>{item.text}</Text>
+      </View>
+    );
+  }, []);
 
   const handleApplyFilters = useCallback((filters: FilterOptions) => {
     setAppliedFilters(filters);
@@ -220,25 +245,34 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + Spacing.xl * 2} // Adjusted offset using Spacing
+        keyboardVerticalOffset={insets.top + Spacing.xl * 2}
       >
         <View style={styles.chatContainer}>
-          <PromptSelector onPromptSend={handleSend} overridePrompts={dynamicPrompts} />
           <FlatList
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(_, i) => i.toString()}
-            contentContainerStyle={{ padding: Spacing.md }} // Using Spacing
+            contentContainerStyle={{ padding: Spacing.md }}
           />
         </View>
 
-        <View style={{ paddingBottom: insets.bottom || Spacing.md }}> {/* Using Spacing */}
+        {dynamicPrompts.length > 0 && (
+          <View style={styles.promptSelectorWrapper}>
+            <PromptSelector
+              onPromptSend={handleSend} // Keep this for now, though it's not the primary action for AI prompts
+              onPromptSelectForInput={handlePromptSelectForInput} // <--- Pass the new handler
+              overridePrompts={dynamicPrompts}
+            />
+          </View>
+        )}
+
+        <View style={{ paddingBottom: insets.bottom || Spacing.md }}>
           <BlurView style={styles.inputContainer} blurType="dark" blurAmount={20}>
             <TextInput
               style={styles.input}
               placeholder="Ask AI to plan your trip..."
-              placeholderTextColor={Colors.textMuted} // Using Colors variable
+              placeholderTextColor={Colors.textMuted}
               value={input}
               onChangeText={setInput}
               multiline
@@ -267,44 +301,44 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background, // Using Colors variable
+    backgroundColor: Colors.background,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md, // Using Spacing
-    marginTop: Spacing.md, // Using Spacing
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.md,
   },
   backButton: {
-    padding: Spacing.md, // Using Spacing
-    backgroundColor: Colors.userBubble, // Using Colors variable
-    borderRadius: BorderRadius.lg, // Using BorderRadius
+    padding: Spacing.md,
+    backgroundColor: Colors.userBubble,
+    borderRadius: BorderRadius.lg,
   },
   backButtonText: {
-    color: Colors.text, // Using Colors variable
+    color: Colors.text,
     fontWeight: '600',
   },
   filterButton: {
-    padding: Spacing.md, // Using Spacing
-    backgroundColor: Colors.aiBubble, // Reusing aiBubble color for consistency
-    borderRadius: BorderRadius.lg, // Using BorderRadius
+    padding: Spacing.md,
+    backgroundColor: Colors.aiBubble,
+    borderRadius: BorderRadius.lg,
   },
   filterButtonText: {
-    color: Colors.primary, // Using Colors variable
+    color: Colors.primary,
     fontWeight: '600',
   },
   chatContainer: {
     flex: 1,
-    marginHorizontal: Spacing.md, // Using Spacing
-    marginBottom: Spacing.md, // Using Spacing
-    borderRadius: BorderRadius.xl, // Using BorderRadius
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
   },
   message: {
-    padding: Spacing.lg, // Using Spacing
-    borderRadius: BorderRadius.lg, // Using BorderRadius
-    marginVertical: Spacing.xs, // Using Spacing
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    marginVertical: Spacing.xs,
     maxWidth: '75%',
   },
   userMessage: {
@@ -314,39 +348,58 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   messageText: {
-    color: Colors.text, // Using Colors variable
-    backgroundColor: Colors.aiBubble, // Using Colors variable (already ai bubble)
-    fontSize: FontSize.md, // Using FontSize
+    color: Colors.text,
+    backgroundColor: Colors.aiBubble,
+    fontSize: FontSize.md,
     fontWeight: '500',
-    padding: Spacing.sm, // Using Spacing
-    borderRadius: BorderRadius.lg, // Using BorderRadius
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+  },
+  promptSelectorWrapper: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.md, // Using Spacing
-    borderRadius: BorderRadius.xl, // Using BorderRadius
-    backgroundColor: Colors.borderColor, // Using Colors variable for border/input background
+    marginHorizontal: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.borderColor,
   },
   input: {
     flex: 1,
-    color: Colors.text, // Using Colors variable
-    fontSize: FontSize.md, // Using FontSize
-    paddingVertical: Spacing.sm, // Using Spacing
-    paddingHorizontal: Spacing.lg, // Using Spacing
-    borderRadius: BorderRadius.lg, // Using BorderRadius
+    color: Colors.text,
+    fontSize: FontSize.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     maxHeight: 120,
   },
   sendButton: {
-    marginLeft: Spacing.md, // Using Spacing
-    backgroundColor: Colors.primary, // Using Colors variable
-    borderRadius: BorderRadius.lg, // Using BorderRadius
-    paddingVertical: Spacing.md, // Using Spacing
-    paddingHorizontal: Spacing.lg, // Using Spacing
+    marginLeft: Spacing.md,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   sendButtonText: {
-    color: Colors.buttonText, // Using Colors variable
+    color: Colors.buttonText,
     fontWeight: 'bold',
+  },
+  typingIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.aiBubble,
+    borderRadius: BorderRadius.lg,
+    maxWidth: '50%',
+  },
+  typingIndicatorText: {
+    marginLeft: Spacing.xs,
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontStyle: 'italic',
   },
 });
 

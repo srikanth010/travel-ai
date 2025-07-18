@@ -1,3 +1,4 @@
+// screens/ChatScreen.tsx (or wherever your ChatScreen is located)
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PromptSelector from '../components/PromptSelector';
 import {
@@ -21,7 +22,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from '@react-native-community/blur';
 import axios from 'axios';
-import FlightResultsSheet from '../components/FlightResultsSheet';
+// import FlightResultsSheet from '../components/FlightResultsSheet'; // REMOVE THIS IMPORT
+import FlightCardsDisplay from '../components/FlightCardsDisplay'; // IMPORT THE NEW COMPONENT
 
 import { Colors, Spacing, BorderRadius, FontSize } from '../theme/styles';
 
@@ -58,18 +60,22 @@ const ChatScreen = () => {
   const preloadedMessage = route.params?.preloadMessage ?? '';
   const [messages, setMessages] = useState<Message[]>([]);
   const [dynamicPrompts, setDynamicPrompts] = useState<string[]>([]);
-  const [input, setInput] = useState(''); // This state will now also be updated by prompts
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
   const hasPreloaded = useRef(false);
-  const sheetRef = useRef<any>(null);
-  const userClosedSheetRef = useRef(false);
 
+  // You no longer need sheetRef or userClosedSheetRef
+  // const sheetRef = useRef<any>(null);
+  // const userClosedSheetRef = useRef(false);
+
+  // We still need these if you plan to use filters, but they won't open a bottom sheet
   const [availableFiltersOptions, setAvailableFiltersOptions] = useState<FilterOptions>({});
   const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({});
 
   const allFlightCards: FlightCard[] = useMemo(() => {
+    // This logic can stay if you want to apply filters to all flights received so far
     return messages
       .filter((m) => m.sender === 'ai' && Array.isArray(m.cards) && m.cards.length > 0)
       .flatMap((m) => m.cards || []);
@@ -95,14 +101,15 @@ const ChatScreen = () => {
     return filteredCards;
   }, [allFlightCards, appliedFilters]);
 
-  useEffect(() => {
-    const hasInitialCards = allFlightCards.length > 0;
-    if (hasInitialCards && !userClosedSheetRef.current) {
-      sheetRef.current?.expand?.();
-    } else if (!hasInitialCards) {
-      sheetRef.current?.close?.();
-    }
-  }, [allFlightCards]);
+  // Remove the useEffect that controls the BottomSheet
+  // useEffect(() => {
+  //   const hasInitialCards = allFlightCards.length > 0;
+  //   if (hasInitialCards && !userClosedSheetRef.current) {
+  //     sheetRef.current?.expand?.();
+  //   } else if (!hasInitialCards) {
+  //     sheetRef.current?.close?.();
+  //   }
+  // }, [allFlightCards]);
 
   useEffect(() => {
     if (preloadedMessage && !hasPreloaded.current) {
@@ -129,8 +136,8 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     Keyboard.dismiss();
 
     setLoading(true);
-    setDynamicPrompts([]); // Clear prompts when a new message is sent
-    setAppliedFilters({});
+    setDynamicPrompts([]);
+    setAppliedFilters({}); // Reset filters on new search
 
     setMessages(prev => [...prev, { sender: 'ai', text: 'AI is thinking...', isTypingIndicator: true }]);
     setTimeout(() => {
@@ -162,9 +169,10 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         durationMinutes: card.durationMinutes,
       }));
 
-      if (transformedCards.length > 0) {
-        userClosedSheetRef.current = false;
-      }
+      // No longer needed
+      // if (transformedCards.length > 0) {
+      //   userClosedSheetRef.current = false;
+      // }
 
       setMessages(prev => prev.filter(msg => !msg.isTypingIndicator));
       setMessages(prev => [
@@ -172,7 +180,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         {
           sender: 'ai',
           text: replyText.trim(),
-          cards: transformedCards,
+          cards: transformedCards, // Pass the cards here
         },
       ]);
 
@@ -197,9 +205,8 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
     }
   }, [input]);
 
-  // NEW HANDLER: To update the input box
   const handlePromptSelectForInput = useCallback((prompt: string) => {
-    setInput(prompt); // Set the input state to the selected prompt text
+    setInput(prompt);
   }, []);
 
   const renderMessage = useCallback(({ item }: { item: Message }) => {
@@ -219,13 +226,21 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         ]}
       >
         <Text style={styles.messageText}>{item.text}</Text>
+        {/* CONDITIONAL RENDERING FOR FLIGHT CARDS */}
+        {item.sender === 'ai' && item.cards && item.cards.length > 0 && (
+          <FlightCardsDisplay cards={item.cards} />
+        )}
       </View>
     );
-  }, []);
+  }, []); // Re-render only if styles change
 
+  // This handleApplyFilters is no longer directly used for opening a sheet,
+  // but you might want to keep it if you implement filtering directly within the chat UI.
+  // For now, it will apply filters, and the `flightCards` memoized value will re-calculate,
+  // which will cause the FlightCardsDisplay to re-render with filtered results.
   const handleApplyFilters = useCallback((filters: FilterOptions) => {
     setAppliedFilters(filters);
-    sheetRef.current?.expand();
+    // No sheet expansion needed here
   }, []);
 
   return (
@@ -234,12 +249,15 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* The filter button might need to trigger a different UI for filters now,
+            perhaps a modal or a dedicated filter view in the chat.
+            For now, I'm commenting it out as the BottomSheet is removed. */}
+        {/* <TouchableOpacity
           style={styles.filterButton}
           onPress={() => sheetRef.current?.showFilters?.()}
         >
           <Text style={styles.filterButtonText}>Filter</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <KeyboardAvoidingView
@@ -260,8 +278,8 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         {dynamicPrompts.length > 0 && (
           <View style={styles.promptSelectorWrapper}>
             <PromptSelector
-              onPromptSend={handleSend} // Keep this for now, though it's not the primary action for AI prompts
-              onPromptSelectForInput={handlePromptSelectForInput} // <--- Pass the new handler
+              onPromptSend={handleSend}
+              onPromptSelectForInput={handlePromptSelectForInput}
               overridePrompts={dynamicPrompts}
             />
           </View>
@@ -284,7 +302,8 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         </View>
       </KeyboardAvoidingView>
 
-      <FlightResultsSheet
+      {/* REMOVE THE FLIGHTRESULTSSHEET COMPONENT */}
+      {/* <FlightResultsSheet
         ref={sheetRef}
         cards={flightCards}
         availableFilters={availableFiltersOptions}
@@ -293,7 +312,7 @@ Then ask: "Want me to plan your trip or find the cheapest way to go?".
         onClose={() => {
           userClosedSheetRef.current = true;
         }}
-      />
+      /> */}
     </SafeAreaView>
   );
 };
@@ -319,12 +338,12 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '600',
   },
-  filterButton: {
+  filterButton: { // Keep the style, but the button itself is commented out in JSX
     padding: Spacing.md,
     backgroundColor: Colors.aiBubble,
     borderRadius: BorderRadius.lg,
   },
-  filterButtonText: {
+  filterButtonText: { // Keep the style, but the button itself is commented out in JSX
     color: Colors.primary,
     fontWeight: '600',
   },
@@ -335,25 +354,29 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
   },
+  // Adjust message styles to accommodate cards
   message: {
-    padding: Spacing.lg,
+    padding: Spacing.lg, // Adjust padding if needed
     borderRadius: BorderRadius.lg,
     marginVertical: Spacing.xs,
-    maxWidth: '75%',
+    maxWidth: '90%', // Increase max width for cards
+    // No fixed background here as cards will have their own
   },
   userMessage: {
     alignSelf: 'flex-end',
+    backgroundColor: Colors.userBubble, // Apply background here
   },
   aiMessage: {
     alignSelf: 'flex-start',
+    backgroundColor: Colors.aiBubble, // Apply background here
+    // For AI messages that contain cards, the cards themselves will have a background.
+    // The main message bubble might need to be transparent or match the container.
   },
   messageText: {
     color: Colors.text,
-    backgroundColor: Colors.aiBubble,
     fontSize: FontSize.md,
     fontWeight: '500',
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    // Removed padding and borderRadius from here as the message bubble now applies it
   },
   promptSelectorWrapper: {
     marginHorizontal: Spacing.md,

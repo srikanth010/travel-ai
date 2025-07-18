@@ -1,7 +1,7 @@
 // components/FlightCardsDisplay.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Linking } from 'react-native';
-import { Colors, Spacing, BorderRadius, FontSize } from '../theme/styles'; // Import your theme variables
+import { Colors, Spacing, BorderRadius, FontSize } from '../theme/styles';
 
 interface FlightCard {
   airline: string;
@@ -21,10 +21,8 @@ interface Props {
 const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
   const [showAll, setShowAll] = useState(false);
 
-  // Determine which cards to display based on showAll state
   const displayedCards = showAll ? cards : cards.slice(0, 3);
 
-  // Reset showAll to false if cards change (new search results)
   useEffect(() => {
     setShowAll(false);
   }, [cards]);
@@ -38,7 +36,6 @@ const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    // Ensure "0 min" is not displayed if minutes are 0
     const minutesPart = remainingMinutes > 0 ? `${remainingMinutes} min${remainingMinutes > 1 ? 's' : ''}` : '';
     return `${hours} hrs ${minutesPart}`.trim();
   };
@@ -48,46 +45,45 @@ const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
       <FlatList
         data={displayedCards}
         keyExtractor={(_, i) => i.toString()}
-        // Remove horizontal prop for vertical scrolling
-        // showsHorizontalScrollIndicator={false} // Remove this too
-        scrollEnabled={true} // Explicitly enable vertical scrolling if the list is longer than view
+        scrollEnabled={true}
         contentContainerStyle={styles.flatListContent}
         renderItem={({ item }) => (
           <View style={styles.card}>
             {/* Row 1: Airline Logo, Times, Price, Dropdown */}
             <View style={styles.row1}>
               <View style={styles.airlineLogoContainer}>
-                {/* For JetBlue, if you have a custom logo or 'JB' */}
                 <Text style={styles.airlineLogoText}>{item.airline.charAt(0)}</Text>
-                {/* <Image source={{ uri: item.airlineLogoUrl }} style={styles.airlineLogoImage} /> */}
               </View>
-              <View style={styles.timesContainer}>
-                <Text style={styles.timeText}>
-                  {new Date(item.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                </Text>
-                <Text style={styles.arrow}>→</Text>
-                <Text style={styles.timeText}>
-                  {new Date(item.returnDateTime || item.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                </Text>
+
+              {/* Central Content (Times and Airports) */}
+              <View style={styles.centralContent}>
+                {/* Times Row */}
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeText}>
+                    {new Date(item.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </Text>
+                  <Text style={styles.arrow}>→</Text>
+                  <Text style={styles.timeText}>
+                    {new Date(item.returnDateTime || item.departureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </Text>
+                </View>
+                {/* Airport Codes Row - Aligned under times */}
+                <View style={styles.airportRow}>
+                  <Text style={styles.airportCode}>{item.origin}</Text>
+                  {/* The actual width of the origin text will push the destination */}
+                  <Text style={styles.airportCode}>{item.destination}</Text>
+                </View>
               </View>
+
               <View style={styles.priceDropdownContainer}>
                 <View style={styles.priceContainer}>
                   <Text style={styles.priceText}>US${item.price.toFixed(0)}</Text>
                   <Text style={styles.roundTripText}>{item.returnDateTime ? 'round trip' : 'one way'}</Text>
                 </View>
-                {/* The dropdown arrow icon (using text for now) */}
                 <TouchableOpacity style={styles.dropdownIcon}>
                     <Text style={styles.dropdownIconText}>⌄</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-
-            {/* Row 2: Origin and Destination */}
-            <View style={styles.row2}>
-              <Text style={styles.airportCode}>{item.origin}</Text>
-              {/* This empty view pushes the destination to the right */}
-              <View style={{flex: 1}}></View>
-              <Text style={styles.airportCode}>{item.destination}</Text>
             </View>
 
             {/* Row 3: Stops, Duration, Airline Name, Emissions (Optional) */}
@@ -99,11 +95,6 @@ const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
               <Text style={styles.detailText}>{formatDuration(item.durationMinutes)}</Text>
               <Text style={styles.detailText}> • </Text>
               <Text style={styles.detailText}>{item.airline}</Text>
-              {/* Optional: "+38% emissions" */}
-              {/* <TouchableOpacity style={styles.emissionsTag}>
-                <Text style={styles.emissionsText}>+38% emissions</Text>
-                <Text style={styles.infoIcon}>ⓘ</Text>
-              </TouchableOpacity> */}
             </View>
 
             {/* Book Now Button */}
@@ -116,7 +107,7 @@ const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
           </View>
         )}
       />
-      {cards.length > 3 && ( // Only show "Show All/Show Less" if there are more than 3 cards
+      {cards.length > 3 && (
         <TouchableOpacity style={styles.showAllButton} onPress={() => setShowAll(!showAll)}>
           <Text style={styles.showAllButtonText}>
             {showAll ? 'Show Less' : `Show All ${cards.length} Flights`}
@@ -129,138 +120,130 @@ const FlightCardsDisplay: React.FC<Props> = ({ cards }) => {
 
 const styles = StyleSheet.create({
   container: {
-    // No specific height needed, will expand with content
     marginVertical: Spacing.sm,
   },
   flatListContent: {
-    paddingBottom: Spacing.sm, // Add some padding at the bottom of the list
+    paddingBottom: Spacing.sm,
   },
   card: {
     backgroundColor: Colors.aiBubble,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#00bfff', // Based on your screenshot, it's still blue
-    paddingVertical: Spacing.md, // Adjusted padding
+    borderColor: '#00bfff',
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md, // Space between cards
-    width: '95%', // Take up most of the chat bubble width
-    alignSelf: 'center', // Center the card within the bubble
+    marginBottom: Spacing.md,
+    width: '95%',
+    alignSelf: 'center',
   },
   row1: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.xs, // Reduced margin
+    alignItems: 'flex-start', // Align to start for top-level alignment
+    marginBottom: Spacing.xs,
   },
   airlineLogoContainer: {
-    width: 28, // Slightly larger logo area
+    width: 28,
     height: 28,
     borderRadius: BorderRadius.sm,
-    backgroundColor: '#002060', // JetBlue dark blue
+    backgroundColor: '#002060',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.sm, // Space after logo
+    marginRight: Spacing.sm,
   },
   airlineLogoText: {
     color: Colors.text,
-    fontSize: FontSize.md, // Slightly larger font for logo letter
+    fontSize: FontSize.md,
     fontWeight: 'bold',
   },
-  timesContainer: {
+  centralContent: {
+    flex: 1, // This section will take up remaining space before the price
+  },
+  timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // We want this to take up space but not push price too far
-    // Will rely on the priceDropdownContainer pushing itself to the end
+    // We remove justifyContent: 'space-between' here and let flex on timeText handle it
   },
   timeText: {
     fontSize: FontSize.lg,
     fontWeight: 'bold',
     color: Colors.text,
+    // Add flexGrow to allow times to take equal space.
+    // This is crucial for alignment.
+    flexGrow: 1,
+    textAlign: 'left', // Ensure text starts from left of its flex space
+    // To match the screenshot, the gap between JFK and LHR looks consistent.
+    // We can make the departure time slightly flex-grow more or use minWidth
   },
   arrow: {
     fontSize: FontSize.lg,
     fontWeight: 'bold',
     color: Colors.textMuted,
     marginHorizontal: Spacing.xs,
+    flexShrink: 0, // Don't shrink the arrow
   },
   priceDropdownContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto', // Push to the right
+    marginLeft: Spacing.sm, // Keep a clear margin
   },
   priceContainer: {
-    alignItems: 'flex-end', // Align price and "round trip" text to the right
+    alignItems: 'flex-end',
   },
   priceText: {
     fontSize: FontSize.lg,
     fontWeight: 'bold',
-    color: '#28a745', // Green for price
+    color: '#28a745',
   },
   roundTripText: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
   },
   dropdownIcon: {
-    marginLeft: Spacing.xs, // Space between price and icon
-    paddingHorizontal: Spacing.xs, // Make touchable area larger
+    marginLeft: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
     paddingVertical: Spacing.xs / 2,
   },
   dropdownIconText: {
-    fontSize: FontSize.lg, // Adjust size to match screenshot
+    fontSize: FontSize.lg,
     color: Colors.text,
   },
-  row2: {
+  airportRow: {
     flexDirection: 'row',
-    // This padding aligns the airport codes under the times
-    paddingLeft: 28 + Spacing.sm, // Width of airlineLogoContainer + its marginRight
-    marginBottom: Spacing.sm, // Space between airports and details
+    marginTop: Spacing.xs / 2, // Small vertical space between times and airports
+    // Remove paddingLeft here, alignment is handled by centralContent flex
   },
-  airportCode: { // Unified style for both airport codes
+  airportCode: {
     fontSize: FontSize.md,
     color: Colors.text,
     fontWeight: '500',
+    flexGrow: 1, // Allow airport codes to grow similar to times
+    textAlign: 'left', // Align text to the left
   },
   row3: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md, // Space between details and "Book Now"
+    marginTop: Spacing.sm, // Increased margin for better spacing from airport codes
+    marginBottom: Spacing.md,
   },
   detailText: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
-    marginRight: Spacing.xs, // Small space between details
-  },
-  emissionsTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)', // Light background for the tag
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs / 2,
-    marginLeft: Spacing.md, // Space from other details
-  },
-  emissionsText: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-  },
-  infoIcon: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    marginLeft: Spacing.xs / 2,
+    marginRight: Spacing.xs,
   },
   bookNowButton: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.sm,
-    paddingVertical: Spacing.sm, // Increased vertical padding for button
-    paddingHorizontal: Spacing.lg, // Increased horizontal padding
-    alignSelf: 'center', // Center the button horizontally
-    marginTop: 0, // No extra margin-top
-    width: '100%', // Make button full width of card content area
-    alignItems: 'center', // Center text inside button
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    alignSelf: 'center',
+    marginTop: 0,
+    width: '100%',
+    alignItems: 'center',
   },
   bookNowButtonText: {
     color: Colors.buttonText,
     fontWeight: 'bold',
-    fontSize: FontSize.md, // Slightly larger font for button
+    fontSize: FontSize.md,
   },
   showAllButton: {
     marginTop: Spacing.md,
